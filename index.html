@@ -1,0 +1,291 @@
+<!DOCTYPE html>  
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🧮 Factorise Expressions Game</title>
+<style>
+  body {
+    font-family: 'Comic Sans MS', cursive, sans-serif;
+    margin: 0; padding: 0;
+    background: linear-gradient(135deg, #f0f9ff, #cbebff);
+    text-align: center;
+  }
+  h1 {
+    background: #4caf50;
+    color: white;
+    padding: 14px;
+    margin: 0;
+    font-size: 24px;
+  }
+  #game-container {
+    margin: 15px auto;
+    width: 95%;
+    max-width: 950px;
+    background: white;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  #left-side {
+    flex: 2;
+  }
+  #side-panel {
+    flex: 0 0 auto;
+    max-width: 240px;
+  }
+  .panel-box {
+    background: #e8f5e9;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid #81c784;
+    text-align: left;
+    font-size: 14px;
+    line-height: 1.5;
+    display: none;
+    margin-bottom: 10px;
+  }
+  .panel-box h3 {
+    font-size: 15px;
+    margin: 0 0 8px 0;
+    text-align: center;
+  }
+  .operation-btn {
+    display: inline-block;
+    padding: 6px 10px;
+    margin: 3px;
+    font-size: 14px;
+    background: #81c784;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid #66bb6a;
+  }
+  .operation-btn:hover {
+    background: #66bb6a;
+  }
+  #question-box {
+    font-size: 20px;
+    margin: 20px 0;
+    font-weight: bold;
+  }
+  input, button {
+    padding: 8px 12px;
+    margin: 4px;
+    font-size: 15px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+  }
+  button {
+    background: #4caf50;
+    color: white;
+    cursor: pointer;
+  }
+  button:hover {
+    background: #388e3c;
+  }
+  #feedback {
+    font-size: 16px;
+    margin-top: 8px;
+    font-weight: bold;
+  }
+  canvas {
+    width: 100%;
+    max-width: 550px;
+    height: 300px;
+  }
+  @media (max-width: 700px) {
+    #game-container {
+      flex-direction: column;
+      align-items: center;
+    }
+    #side-panel {
+      width: 100%;
+      max-width: 340px;
+      text-align: center;
+    }
+  }
+</style>
+</head>
+<body>
+<h1>🧮 Factorise Expressions Game</h1>
+<div id="game-container">
+  <div id="left-side">
+    <div id="question-box"></div>
+    <div>
+      <label for="answer">Answer:</label>
+      <input type="text" id="answer" placeholder="e.g., (x+2)(x-2)">
+      <button id="submitBtn">✔ Submit</button>
+      <button onclick="restartGame()">⟳ New Question</button>
+      <button onclick="toggleHints()">💡 Hints</button>
+      <button onclick="toggleOperations()">⚙️ Operations</button>
+    </div>
+    <div id="feedback"></div>
+    <canvas id="gameCanvas"></canvas>
+  </div>
+
+  <div id="side-panel">
+    <!-- Hints Panel -->
+    <div id="hints" class="panel-box">
+      <h3>📝 Hints</h3>
+      <p>👉 Factor out the greatest common factor</p>
+      <p>👉 Use difference of squares: a² - b² = (a-b)(a+b)</p>
+      <p>👉 Perfect square trinomials: a² + 2ab + b² = (a+b)²</p>
+      <p>👉 Combine like terms</p>
+      <p>👉 Simplify fractions if needed</p>
+    </div>
+
+    <!-- Operations Panel -->
+    <div id="operations" class="panel-box">
+      <h3>⚙️ Operations</h3>
+      <div id="ops-container">
+        <!-- Buttons will be generated dynamically -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<audio id="applause" src="https://www.soundjay.com/human/applause-01.mp3" preload="auto"></audio>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+canvas.width = 550;
+canvas.height = 300;
+
+let currentQuestion = "";
+let correctAnswers = [];
+let particles = [];
+
+// Expression pool
+const questions = [
+  { q: "6x + 9", a: ["3(2x+3)"] },
+  { q: "x² + 5x", a: ["x(x+5)"] },
+  { q: "4y² - 9", a: ["(2y-3)(2y+3)", "(2y+3)(2y-3)"] },
+  { q: "a² + 6a + 9", a: ["(a+3)(a+3)", "(a+3)^2"] },
+  { q: "2m² + 8m", a: ["2m(m+4)"] },
+  { q: "x² - 16", a: ["(x-4)(x+4)", "(x+4)(x-4)"] },
+  { q: "3p² - 12p", a: ["3p(p-4)"] },
+  { q: "y² + 10y + 25", a: ["(y+5)(y+5)", "(y+5)^2"] }
+];
+
+// Operations buttons
+const operationsList = ["+", "-", "*", "(", ")", "^2", "x", "y", "a", "m", "p"];
+
+function toggleHints() {
+  const hints = document.getElementById("hints");
+  hints.style.display = (hints.style.display === "block") ? "none" : "block";
+}
+function toggleOperations() {
+  const ops = document.getElementById("operations");
+  ops.style.display = (ops.style.display === "block") ? "none" : "block";
+}
+
+// Generate operation buttons
+const opsContainer = document.getElementById("ops-container");
+operationsList.forEach(op => {
+  const btn = document.createElement("div");
+  btn.className = "operation-btn";
+  btn.textContent = op;
+  btn.onclick = () => {
+    const input = document.getElementById("answer");
+    input.value += op;
+    input.focus();
+  };
+  opsContainer.appendChild(btn);
+});
+
+// New question
+function newQuestion() {
+  const item = questions[Math.floor(Math.random() * questions.length)];
+  currentQuestion = item.q;
+  correctAnswers = item.a.map(ans => ans.replace(/\s+/g, ""));
+  document.getElementById("question-box").textContent = `🎯 Factorise: ${currentQuestion}`;
+  document.getElementById("feedback").textContent = "";
+  document.getElementById("answer").value = "";
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+// Check answer with attractive responses
+function checkAnswer() {
+  let input = document.getElementById("answer").value.trim().replace(/\s+/g, "");
+  const feedback = document.getElementById("feedback");
+  const positiveMessages = [
+    "🎉 Awesome! Correct! 🔥",
+    "✅ Perfect! You nailed it! 🌟",
+    "👏 Great job! Keep going!"
+  ];
+  const negativeMessages = [
+    "❌ Oops! Try again! 💡",
+    "⚠️ Not quite, check your factors!",
+    "😅 Almost! Correct answer shown below"
+  ];
+
+  if (correctAnswers.includes(input)) {
+    feedback.style.color = "green";
+    feedback.textContent = positiveMessages[Math.floor(Math.random() * positiveMessages.length)];
+    playApplause();
+    launchFireworks();
+    setTimeout(newQuestion, 3000);
+  } else {
+    feedback.style.color = "red";
+    feedback.textContent = negativeMessages[Math.floor(Math.random() * negativeMessages.length)] + ` Correct: ${correctAnswers[0]}`;
+  }
+}
+
+function restartGame() {
+  particles = [];
+  newQuestion();
+}
+
+// Fireworks
+function playApplause() {
+  const applause = document.getElementById("applause");
+  applause.currentTime = 0;
+  applause.play();
+}
+function launchFireworks() {
+  particles = [];
+  for (let i = 0; i < 80; i++) {
+    particles.push({
+      x: canvas.width/2,
+      y: canvas.height/2,
+      angle: Math.random() * 2 * Math.PI,
+      speed: Math.random() * 5 + 2,
+      radius: Math.random() * 3 + 2,
+      life: 100
+    });
+  }
+  animateFireworks();
+}
+function animateFireworks() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  particles.forEach(p => {
+    let dx = Math.cos(p.angle) * p.speed;
+    let dy = Math.sin(p.angle) * p.speed;
+    p.x += dx;
+    p.y += dy;
+    p.life -= 2;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(${Math.random()*255},${Math.random()*255},${Math.random()*255},${p.life/100})`;
+    ctx.fill();
+  });
+  particles = particles.filter(p => p.life > 0);
+  if (particles.length > 0) requestAnimationFrame(animateFireworks);
+}
+
+// Event listeners
+document.getElementById("answer").addEventListener("keypress", function(e) {
+  if (e.key === "Enter") checkAnswer();
+});
+document.getElementById("submitBtn").addEventListener("click", checkAnswer);
+
+newQuestion();
+</script>
+</body>
+</html>
